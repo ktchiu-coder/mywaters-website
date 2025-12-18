@@ -9,6 +9,12 @@ interface FishProps {
 }
 
 export const Fish: React.FC<FishProps> = ({ entry, onHover, onLeave, containerDimensions }) => {
+  // Extract day from date string YYYY-MM-DD
+  const day = useMemo(() => {
+    const parts = entry.date.split('-');
+    return parts[2] || '';
+  }, [entry.date]);
+
   // Refs for physics to avoid re-renders
   const posRef = useRef({ 
     x: Math.random() * containerDimensions.width, 
@@ -27,12 +33,11 @@ export const Fish: React.FC<FishProps> = ({ entry, onHover, onLeave, containerDi
   useEffect(() => { dimsRef.current = containerDimensions; }, [containerDimensions]);
 
   // Characteristics
-  const maxSpeed = useMemo(() => 0.8 + Math.random() * 0.8, []); // Slower, more graceful speed
-  const size = useMemo(() => 35 + Math.random() * 20, []); // Larger size for better visibility
+  const maxSpeed = useMemo(() => 0.8 + Math.random() * 0.8, []);
+  const size = useMemo(() => 45 + Math.random() * 15, []); // Slightly larger to accommodate text
   const turnSpeed = useMemo(() => 0.02 + Math.random() * 0.02, []);
 
   const animate = () => {
-    // Only animate if element exists
     if (!fishRef.current) {
       requestRef.current = requestAnimationFrame(animate);
       return;
@@ -44,41 +49,30 @@ export const Fish: React.FC<FishProps> = ({ entry, onHover, onLeave, containerDi
       const vel = velRef.current;
       const margin = 100;
 
-      // Physics: Flocking-lite / Steering Behavior
-      
-      // 1. Wall Avoidance (Soft Steering)
       if (pos.x < margin) vel.x += turnSpeed;
       if (pos.x > width - margin) vel.x -= turnSpeed;
       if (pos.y < margin) vel.y += turnSpeed;
       if (pos.y > height - margin) vel.y -= turnSpeed;
 
-      // 2. Wander (Organic Randomness)
       const wanderStrength = 0.05;
       vel.x += (Math.random() - 0.5) * wanderStrength;
       vel.y += (Math.random() - 0.5) * wanderStrength;
 
-      // 3. Speed Limit (Normalization)
       const currentSpeed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
       if (currentSpeed > maxSpeed) {
         vel.x = (vel.x / currentSpeed) * maxSpeed;
         vel.y = (vel.y / currentSpeed) * maxSpeed;
       } else if (currentSpeed < maxSpeed * 0.5) {
-        // Minimum speed to keep them moving
         vel.x = (vel.x / currentSpeed) * maxSpeed * 0.5;
         vel.y = (vel.y / currentSpeed) * maxSpeed * 0.5;
       }
 
-      // Update Position
       pos.x += vel.x;
       pos.y += vel.y;
 
-      // Calculate Rotation (0 deg is East/Right)
       const rotation = Math.atan2(vel.y, vel.x) * (180 / Math.PI);
-
-      // Direct DOM update for performance
       fishRef.current.style.transform = `translate3d(${pos.x}px, ${pos.y}px, 0) rotate(${rotation}deg) scale(1)`;
     } else {
-       // While hovered, keep position but scale up
        const pos = posRef.current;
        const vel = velRef.current;
        const rotation = Math.atan2(vel.y, vel.x) * (180 / Math.PI);
@@ -110,11 +104,10 @@ export const Fish: React.FC<FishProps> = ({ entry, onHover, onLeave, containerDi
       ref={fishRef}
       className="absolute cursor-pointer will-change-transform z-10 hover:z-50 mix-blend-screen"
       style={{
-        width: size * 2, // 2:1 aspect ratio roughly
+        width: size * 2,
         height: size,
         left: 0,
         top: 0,
-        // Center the pivot
         marginLeft: -size,
         marginTop: -size / 2,
         transition: 'filter 0.3s ease',
@@ -123,7 +116,6 @@ export const Fish: React.FC<FishProps> = ({ entry, onHover, onLeave, containerDi
       onMouseLeave={handleMouseLeave}
     >
       <div className="w-full h-full relative" style={{ filter: 'drop-shadow(0 10px 10px rgba(0,0,0,0.5))' }}>
-        {/* Organic Fish SVG */}
         <svg viewBox="0 0 100 50" className="w-full h-full overflow-visible">
             <defs>
                <linearGradient id={`grad-${entry.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
@@ -132,15 +124,26 @@ export const Fish: React.FC<FishProps> = ({ entry, onHover, onLeave, containerDi
                </linearGradient>
             </defs>
             
-            {/* Body Group: Rotated slightly so default 0deg aligns with velocity vector (Right) */}
             <g>
-                {/* Main Body - Smooth tapered shape */}
                 <path 
                   d="M 25 25 Q 50 5 95 25 Q 50 45 25 25 Z" 
                   fill={`url(#grad-${entry.id})`}
                 />
                 
-                {/* Tail - Wiggling animation */}
+                {/* Date Number on Fish Body */}
+                <text 
+                  x="60" 
+                  y="28" 
+                  fill="rgba(0,0,0,0.5)" 
+                  fontSize="12" 
+                  fontWeight="bold" 
+                  textAnchor="middle" 
+                  className="pointer-events-none select-none"
+                  style={{ fontFamily: 'monospace' }}
+                >
+                  {day}
+                </text>
+
                 <g style={{ transformOrigin: '25px 25px' }}>
                     <path 
                       d="M 25 25 Q 15 15 0 10 Q 5 25 0 40 Q 15 35 25 25 Z" 
@@ -158,7 +161,6 @@ export const Fish: React.FC<FishProps> = ({ entry, onHover, onLeave, containerDi
                     />
                 </g>
 
-                {/* Fins (Pectoral) - Subtle breathing */}
                 <g style={{ transformOrigin: '60px 25px' }}>
                     <path d="M 60 25 L 50 10 L 65 20 Z" fill={entry.color_code} opacity="0.6">
                        <animateTransform attributeName="transform" type="rotate" values="0 60 25; 15 60 25; 0 60 25" dur="1.5s" repeatCount="indefinite" />

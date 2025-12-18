@@ -3,15 +3,17 @@ import { Clock } from '../components/Clock';
 import { MOODS } from '../constants';
 import { MoodType, DiaryEntry } from '../types';
 import { saveEntry } from '../services/storage';
-import { Check, Droplets } from 'lucide-react';
+import { Check, Droplets, Calendar, Clock as ClockIcon } from 'lucide-react';
 
-// Serene Lake with Grass in Foreground
 const BACKGROUND_IMAGE = 'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=2560&auto=format&fit=crop';
 
 export const Home: React.FC = () => {
   const [selectedMood, setSelectedMood] = useState<MoodType | null>(null);
   const [text, setText] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [showAdjust, setShowAdjust] = useState(false);
+  const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manualTime, setManualTime] = useState(new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' }));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,14 +26,21 @@ export const Home: React.FC = () => {
       return;
     }
 
-    const now = new Date();
-    const generatedTitle = `Mood Entry @ ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    let dateToSave = manualDate;
+    let timeToSave = manualTime;
+
+    // Use current time if user hasn't toggled showAdjust OR if we want to ensure "recording the present" is default
+    if (!showAdjust) {
+        const now = new Date();
+        dateToSave = now.toISOString().split('T')[0];
+        timeToSave = now.toLocaleTimeString([], { hour12: false });
+    }
 
     const entry: DiaryEntry = {
       id: crypto.randomUUID(),
-      date: now.toISOString().split('T')[0],
-      time: now.toLocaleTimeString(),
-      title: generatedTitle,
+      date: dateToSave,
+      time: timeToSave,
+      title: `Entry @ ${timeToSave}`,
       text,
       mood: selectedMood,
       color_code: MOODS[selectedMood].color,
@@ -49,23 +58,18 @@ export const Home: React.FC = () => {
   return (
     <div className="min-h-screen w-full relative flex flex-col items-center justify-start pt-10 px-4 pb-24 overflow-hidden">
       
-      {/* Background Image Layer */}
       <div 
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{ 
           backgroundImage: `url(${BACKGROUND_IMAGE})`,
-          // Adjusted filter for the new nature scene to maintain readability but keep the vibe
           filter: 'brightness(0.65) contrast(1.05) saturate(0.9)' 
         }}
       />
       
-      {/* Dark Gradient Overlay for Readability */}
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/50 via-black/10 to-black/60 pointer-events-none" />
 
-      {/* Content Container */}
       <div className="relative z-10 w-full flex flex-col items-center">
         
-        {/* Title */}
         <header className="text-center mb-8 w-full max-w-2xl">
           <h1 className="text-5xl md:text-6xl text-[#eaddcf] mb-2 handwriting-font drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-normal whitespace-nowrap">
             My Daily Emotion Waters
@@ -74,20 +78,17 @@ export const Home: React.FC = () => {
 
         <Clock />
 
-        {/* Floating Input Area */}
         <div className="relative w-full max-w-xl animate-[sway_8s_ease-in-out_infinite] origin-top">
           
-          {/* Glassy/Dark Container */}
           <div 
             className="rounded-[3rem] p-8 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5 backdrop-blur-md relative overflow-hidden transition-all duration-500"
             style={{
-              backgroundColor: 'rgba(15, 20, 25, 0.6)', // Deep cool dark tone
+              backgroundColor: 'rgba(15, 20, 25, 0.6)',
               boxShadow: 'inset 0 0 60px rgba(0,0,0,0.8), 0 20px 40px rgba(0,0,0,0.6)'
             }}
           >
             <form onSubmit={handleSubmit} className="relative z-10">
               
-              {/* Mood Selection */}
               <div className="mb-8 text-center">
                 <label className="block text-[#eaddcf] text-2xl handwriting-font mb-6 drop-shadow-md opacity-90">
                   How is your mood today?
@@ -122,8 +123,7 @@ export const Home: React.FC = () => {
                 </div>
               </div>
 
-              {/* Paper Note Input */}
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div className="relative transform rotate-[0.5deg]">
                   <textarea
                     value={text}
@@ -138,12 +138,44 @@ export const Home: React.FC = () => {
                       caretColor: '#2A211B'
                     }}
                   />
-                  {/* Paper fold corner effect */}
                   <div className="absolute bottom-0 right-0 w-8 h-8 bg-gradient-to-tl from-black/20 to-transparent pointer-events-none rounded-br-sm" />
+                </div>
+
+                {/* Date/Time Adjuster */}
+                <div className="flex flex-col items-center">
+                    <button 
+                        type="button" 
+                        onClick={() => setShowAdjust(!showAdjust)}
+                        className="text-[#eaddcf]/60 hover:text-[#eaddcf] transition-colors text-xs uppercase tracking-widest mb-2 font-bold"
+                    >
+                        {showAdjust ? 'Back to present' : 'Isn’t this for recording the present moment?'}
+                    </button>
+                    
+                    {showAdjust && (
+                        <div className="flex gap-4 animate-in fade-in zoom-in duration-300">
+                            <div className="flex items-center gap-2 bg-black/30 px-3 py-2 rounded-lg border border-white/10">
+                                <Calendar className="w-4 h-4 text-[#eaddcf]/80" />
+                                <input 
+                                    type="date" 
+                                    value={manualDate} 
+                                    onChange={(e) => setManualDate(e.target.value)}
+                                    className="bg-transparent text-[#eaddcf] text-sm focus:outline-none"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 bg-black/30 px-3 py-2 rounded-lg border border-white/10">
+                                <ClockIcon className="w-4 h-4 text-[#eaddcf]/80" />
+                                <input 
+                                    type="time" 
+                                    value={manualTime} 
+                                    onChange={(e) => setManualTime(e.target.value)}
+                                    className="bg-transparent text-[#eaddcf] text-sm focus:outline-none"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
               </div>
 
-              {/* Action */}
               <div className="mt-8 flex flex-col items-center gap-3">
                 <button
                   type="submit"
